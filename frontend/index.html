@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CineSync</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <div class="brand">🎬 CineSync</div>
+    <ul class="nav-links">
+      <li class="active" data-nav="movies">Movies</li>
+      <li data-nav="bookings">My Bookings</li>
+      <li data-nav="reviews">Reviews</li>
+    </ul>
+  </nav>
+
+  <!-- NAME ENTRY -->
+  <div id="nameScreen" class="name-screen">
+    <div class="name-card">
+      <h2>Welcome to CineSync</h2>
+      <p>Enter your name to start booking</p>
+      <input type="text" id="nameInput" placeholder="e.g. Priya Sharma" maxlength="50">
+      <button id="nameSubmit">Continue</button>
+      <p id="nameError" class="error-text"></p>
+    </div>
+  </div>
+
+  <!-- MOVIE SELECTION -->
+  <div id="moviesScreen" class="page hidden">
+    <h2 class="page-title">Now Showing</h2>
+    <div id="movieGrid" class="movie-grid"></div>
+  </div>
+
+  <!-- SEAT BOOKING -->
+  <div id="bookingScreen" class="booking-screen hidden">
+
+    <header class="movie-banner">
+      <div class="movie-info">
+        <h1 id="bookingMovieTitle"></h1>
+        <p id="bookingMovieMeta"></p>
+      </div>
+      <div class="user-chip">👤 <span id="userNameDisplay"></span></div>
+    </header>
+
+    <div class="screen-indicator">
+      <div class="screen-curve"></div>
+      <span>SCREEN THIS SIDE</span>
+    </div>
+
+    <div id="seatMap" class="seat-map"></div>
+
+    <div class="legend">
+      <span><i class="box available"></i> Available</span>
+      <span><i class="box held"></i> Held</span>
+      <span><i class="box booked"></i> Booked</span>
+    </div>
+
+    <p id="statusMsg" class="status-msg"></p>
+
+    <!-- live OS/DBMS activity feed -->
+    <div class="activity-panel">
+      <div class="activity-header" id="activityToggle">
+        <span>⚙️ System Activity (live) — shows locking, transactions &amp; scheduler events</span>
+        <span id="activityArrow">▾</span>
+      </div>
+      <div id="activityLog" class="activity-log"></div>
+    </div>
+  </div>
+
+  <!-- PAYMENT -->
+  <div id="paymentScreen" class="center-screen hidden">
+    <div class="card">
+      <h2>Confirm &amp; Pay</h2>
+      <div class="summary-row"><span>Movie</span><span id="payMovieTitle"></span></div>
+      <div class="summary-row"><span>Seat</span><span id="paySeatNo"></span></div>
+      <div class="summary-row"><span>Amount</span><span>₹250.00</span></div>
+      <button id="payNowBtn">Pay Now</button>
+      <button id="payCancelBtn" class="secondary-btn">Cancel</button>
+      <p id="paymentStatus" class="error-text"></p>
+    </div>
+  </div>
+
+  <!-- RECEIPT + FOOD -->
+  <div id="receiptScreen" class="center-screen hidden">
+    <div class="card">
+      <h2>🎉 Booking Confirmed</h2>
+      <div class="summary-row"><span>Booking ID</span><span id="receiptBookingId"></span></div>
+      <div class="summary-row"><span>Seat</span><span id="receiptSeatNo"></span></div>
+      <div class="summary-row"><span>Amount Paid</span><span>₹250.00</span></div>
+
+      <h3 class="sub-heading">Add Food &amp; Snacks (optional)</h3>
+      <div id="foodList" class="food-list"></div>
+      <button id="addFoodBtn">Add to Order</button>
+      <button id="skipFoodBtn" class="secondary-btn">Skip &amp; Finish</button>
+      <p id="foodStatus" class="error-text"></p>
+    </div>
+  </div>
+
+  <!-- MY BOOKINGS -->
+  <div id="bookingsScreen" class="page hidden">
+    <h2 class="page-title">My Bookings</h2>
+    <div id="bookingsList" class="bookings-list"></div>
+  </div>
+
+  <!-- REVIEWS / LIVE CHAT -->
+  <div id="reviewsScreen" class="page hidden">
+    <h2 class="page-title">Reviews &amp; Live Chat</h2>
+    <select id="reviewMovieSelect" class="movie-select"></select>
+
+    <div id="reviewFeed" class="review-feed"></div>
+
+    <div class="review-input-row">
+      <select id="ratingSelect">
+        <option value="5">★★★★★</option>
+        <option value="4">★★★★☆</option>
+        <option value="3">★★★☆☆</option>
+        <option value="2">★★☆☆☆</option>
+        <option value="1">★☆☆☆☆</option>
+      </select>
+      <input type="text" id="reviewInput" placeholder="Share your thoughts...">
+      <button id="reviewSendBtn">Send</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
