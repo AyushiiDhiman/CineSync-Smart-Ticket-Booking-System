@@ -1,3 +1,20 @@
+"""
+deadlock_demo.py
+
+Standalone script for the viva/demo - NOT part of the main app.
+Creates a real deadlock on purpose and shows MySQL's InnoDB engine
+detecting and breaking it automatically.
+
+Setup:
+    Txn A locks seat 1, then tries to lock seat 2
+    Txn B locks seat 2, then tries to lock seat 1
+    -> circular wait -> InnoDB detects it and kills one transaction
+
+Run with: python deadlock_demo.py
+(reset seat 1 and seat 2 to 'available' in the DB before running,
+otherwise the FOR UPDATE locks below won't behave the same way)
+"""
+
 import threading
 import time
 
@@ -67,3 +84,8 @@ if __name__ == "__main__":
     print("the other should show something like:")
     print("'Deadlock found when trying to get lock; try restarting transaction'")
     print("That error message IS the deadlock detection working.")
+    print("\nNote: our group-booking code (hold-group endpoint) actually AVOIDS")
+    print("this problem on purpose, by always locking seats in sorted ID order -")
+    print("that consistent ordering is a classic deadlock-prevention technique.")
+    print("This script skips that safeguard deliberately, so we have something")
+    print("to demonstrate deadlock DETECTION with.")

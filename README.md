@@ -1,137 +1,213 @@
-# CineSync
+# CineSync - Phase 4
 
-Movie ticket booking system built for our OS + DBMS mini project. Main idea:
-two people should never be able to book the same seat, and a booking +
-its payment should either both go through or neither should.
+Movie ticket booking system built for our OS + DBMS project. Core idea:
+two people should never be able to book the same seat, a group of seats
+booked together should either ALL succeed or ALL fail, and now - real
+payment, real-time chat, and multiple theatres.
 
-## What's actually done (Phase 2, ~60%)
+## What's new in Phase 4.1
 
-- Seat booking with row-level locking (`SELECT ... FOR UPDATE`) - this is
-  the core concurrency-control part
-- Booking + mock payment as a single atomic transaction (commits or rolls
-  back together)
-- Background scheduler that releases seats held but never paid for, running
-  on its own OS thread (see "OS concepts" below)
-- A counting semaphore (`threading.Semaphore`) limiting how many booking
-  requests run at once - a real OS resource-allocation primitive, written
-  in our own code rather than relying on the database for it
-- A standalone deadlock demo (`deadlock_demo.py`) that triggers and shows
-  MySQL detecting a real deadlock between two transactions
-- Working frontend: name entry, seat map, payment screen, food ordering,
-  and a "My Bookings" history page, all connected to the backend
+- **Demo payment mode (no Razorpay account or PAN needed).** `PAYMENT_MODE = "mock"`
+  in `backend/payment_config.py` (the default). Set it to `"razorpay"` and fill in
+  test keys to use real Razorpay. In mock mode the `razorpay` package is never
+  imported, so it can't break the app.
+- **ACID shown, not just claimed.** On the demo checkout you can choose
+  *Pay successfully*, *Decline the card*, or *Crash the server mid-booking*. The
+  pay and ticket screens then show the real transaction as a timeline
+  (BEGIN, locks, INSERTs, COMMIT or ROLLBACK) plus what a brand-new database
+  connection sees afterwards.
+- **ACID Lab** (nav bar): four real MySQL experiments, each runnable with and
+  without the protection:
+  | Letter | Experiment | What you see |
+  |---|---|---|
+  | A | 3 seats, crash after the 2nd | transaction: 0 rows left. Autocommit: 2 orphan rows |
+  | C | double-book a seat / overspend a wallet | UNIQUE and CHECK rules refuse it, transaction rolls back |
+  | I | two people book seat L1 at once | `FOR UPDATE`: one winner. No lock: both told "booked" (lost update) |
+  | D | COMMIT, read back on a new connection | plus `innodb_flush_log_at_trx_commit`; stop/start MySQL and press "Check after restart" |
+  The lab uses its own `lab_*` tables (created automatically on first run), so it never touches real bookings. CHECK rules need MySQL 8.0.16+.
+- **Bright and dark themes.** Bright and colourful by default; the sun/moon
+  button switches (and remembers your choice).
 
-## DBMS objects (view, trigger, stored procedure)
+## What's new in Phase 4
 
-Mentor asked for these specifically, so they're in `schema.sql` for fresh
-installs, or in `add_db_objects.sql` if you already have a database set up
-and don't want to lose data by rerunning the whole schema.
+- **Cinemas near you** - type a city/area/pincode or tap "Use my location".
+  `GET /api/theatres/nearby` returns cinemas sorted by real distance
+  (haversine formula, `backend/geo.py`). A radius slider, sort (nearest /
+  cheapest / earliest) and amenity filters sit on top, and an interactive
+  radar shows where each cinema is relative to you.
+- **Showtimes with live availability** - pick a cinema, then a day, a movie
+  and a time. Each time shows how full the show is.
+- **New seat map** - screen glows in the movie's colour, "Pick best seats"
+  finds N seats together near the centre, row tiers (Classic / Prime /
+  Premium) have different prices, and a hold timer counts down on the pay screen.
+- **Ticket-style UI** throughout, mobile friendly.
+- **Fixes found while rebuilding** (worth knowing for your viva):
+  - Price was sent by the browser to `/create-order`; it is now computed on the
+    server from the seats (`geo.seat_price`), so it can't be edited in dev tools.
+  - Going back from the payment screen left your own seats stuck as "held" and
+    you couldn't re-select them. Re-holding your own seats now works, and
+    `POST /api/holds/release` frees them immediately.
+  - Chat messages and names were inserted into the page as raw HTML (stored
+    XSS). Everything is escaped now.
+  - Chat rooms were never left, so old movies' messages leaked into the open
+    one. Added `leave_movie` and a `movie_id` check.
+  - Show dates were hard-coded to October, so shows expired. `seed_shows.py`
+    generates upcoming shows relative to today.
 
-- **View** `available_seats_per_show` - run `SELECT * FROM available_seats_per_show;`
-  to see available seat counts per movie without writing the join yourself
-- **Trigger** `seat_status_change` - fires automatically on every seat update,
-  logs it into `seat_audit_log`. Book any seat through the app, then run
-  `SELECT * FROM seat_audit_log ORDER BY changed_at DESC;` to see it caught
-  the change - we never call this trigger from the code, MySQL just does it
-- **Stored procedure** `ConfirmBooking` - does the same booking+payment logic
-  as the Flask route, but as a transaction fully inside the database. Not
-  used by the actual app (we kept the Python version since it's easier to
-  demo rollback from there), but good to show in the viva if asked
-  specifically about stored procedures. Try it:
-  ```sql
-  CALL ConfirmBooking(1, 1, 250.00, @result);
-  SELECT @result;
-  ```
-  (seat 1 needs to actually be held by user 1 first for this to succeed -
-  hold it through the app, then run this before the 5-minute timer expires)
+> Theatre names/coordinates in the sample data are **demo values** (approximate
+> lat/lng). Replace them with real venues before showing this as real data.
 
-## OS concepts actually implemented (not just DB locking)
+## What was in Phase 3
 
-| Concept | Where |
-|---|---|
-| Background thread / daemon process | `scheduler.py` - runs on its own thread, separate from request handling |
-| Counting semaphore (bounded resource allocation) | `app.py` - `BOOKING_COUNTERS`, limits concurrent booking operations to 3 |
-| Deadlock detection | `deadlock_demo.py` - two transactions deadlock on purpose, MySQL's InnoDB detects and kills one |
-| Mutual exclusion / critical section | `SELECT ... FOR UPDATE` in `app.py` - this one leans on the DB engine, worth being upfront about in viva |
-
-Being honest in the report/viva about which parts are "we wrote this
-ourselves" (scheduler thread, semaphore, deadlock demo) vs. "this is the
-DB engine doing it for us" (row locking) actually looks stronger than
-pretending it's all hand-rolled.
-
-## Not done yet
-
-- Any kind of real payment gateway (it's just a random success/fail, on purpose)
-- True push-based live chat (reviews poll every 3 seconds instead of using websockets -
-  it feels live but isn't a persistent connection)
-- Styling polish / mobile view
-
-## New in this version
-
-- **5 movies** instead of just 1, each with its own show and 20 seats
-- **Live-ish review/chat feed** per movie - polls every 3 seconds so comments from
-  other users show up without a manual refresh
-- **System Activity panel** on the booking screen - shows locking, transaction
-  commit/rollback, and scheduler events live, so the OS/DBMS concepts are actually
-  visible while using the app instead of hidden in a terminal
+- **3 theatres**, each showing all 5 movies - pick a theatre first, then a movie
+- **Group/family booking** - choose how many seats you need (1-6), then
+  pick exactly that many on the seat map, all locked and booked together
+  as one atomic unit
+- **Real Razorpay payment (test mode)** - not mocked anymore. An actual
+  order is created through Razorpay's API, you pay through their real
+  checkout popup (with test card numbers, no real money), and we verify
+  the payment signature before confirming anything
+- **True live chat** via Socket.IO - messages appear for everyone
+  watching that movie's chat instantly, no polling/refreshing involved
+- Everything from Phase 2 still works: row-level locking, the booking
+  semaphore, the background scheduler, the deadlock demo, food ordering,
+  and the View/Trigger/Stored Procedure
 
 ## Setup
 
-1. Install MySQL locally if you don't have it, then run:
-   ```
-   mysql -u root -p < backend/schema.sql
-   ```
-   **If you already ran schema.sql before (old 1-movie version)**, don't rerun it -
-   it'll wipe your data. Instead run:
-   ```
-   python seed_more_movies.py
-   ```
-   after setting up `database.py` (next step) - this safely adds the 4 new movies.
-2. Open `backend/database.py` and put in your MySQL password.
-3. Install Python packages:
-   ```
-   cd backend
-   pip install -r requirements.txt
-   ```
-4. Run the backend:
-   ```
-   python app.py
-   ```
-5. Open `frontend/index.html` directly in your browser (double-click it,
-   no server needed for the frontend).
+### 1. Database
 
-## How to demo the locking (the important part)
+**Fresh install** (new database, nothing to lose):
+```
+mysql -u root -p < backend/schema.sql
+cd backend && python seed_shows.py      # creates shows + seats for the next 3 days
+```
+Run `python seed_shows.py` again any day to top up upcoming shows (it only adds what's missing).
 
-1. Open `frontend/index.html` in two separate browser tabs.
-2. In tab 1, set "Booking as" to Test User A. In tab 2, set it to Test User B.
-3. Click the SAME seat in both tabs as close together as you can.
-4. One tab will book it successfully, the other will get a
-   "seat is not available" error - that's the row lock doing its job.
+**Already have a Phase 3 database and don't want to lose your bookings?**
+Don't run schema.sql - instead, after completing step 2 below, run:
+```
+python migrate_to_phase4.py
+```
+This adds the location columns (city, lat, lng, amenities), movie genre/language,
+show prices, the extra demo cinemas, and fresh upcoming shows - checking first
+so it is safe to run twice. (On a Phase 2 database run `migrate_to_phase3.py` first.)
 
-You can also just watch it in the terminal where `app.py` is running -
-the scheduler prints a line every time it releases an expired hold.
+### 2. Python setup
 
-## How to demo the deadlock (new, strengthens the OS side)
+```
+cd backend
+pip install -r requirements.txt
+```
 
-1. Make sure seats 1 and 2 (A1 and A2) are set to 'available' in the DB.
-2. Stop `app.py` if it's running, or just make sure nothing else is
-   holding those two seats.
-3. Run:
-   ```
-   python deadlock_demo.py
-   ```
-4. Watch the output - one transaction will commit, the other will show
-   MySQL's deadlock error message. That error IS the detection mechanism
-   working, not a bug.
+Open `database.py` and put in your MySQL password.
+
+### 3. Razorpay test keys (required for payment to work)
+
+1. Sign up free at https://dashboard.razorpay.com/signup
+2. Make sure you're in **Test Mode** (toggle, top-left of the dashboard)
+3. Settings -> API Keys -> Generate Test Key
+4. Open `backend/payment_config.py` and paste your Key Id and Key Secret
+
+Without this step, the app still runs, but creating a payment order will
+fail with an authentication error from Razorpay.
+
+### 4. Run the backend
+
+```
+python app.py
+```
+
+### 5. Open the frontend
+
+Serve the folder over localhost (still no build step):
+```
+cd frontend
+python -m http.server 8000
+```
+then open http://localhost:8000. Don't double-click `index.html` this time:
+browsers only offer "Use my location" on secure origins, and `http://localhost`
+counts as secure while `file://` is unreliable. Typing a location works either way.
+
+## How to demo
+
+1. Enter a name and a location (try `Dehradun`, then a locality like `Rajpur`, or Use my location)
+2. Drag the radius slider, change the sort, hover a cinema and watch its pin on the radar
+3. Open a cinema, choose a day and a showtime
+4. Set the seat count (try 3 - a "family" booking) and tap "Pick best seats", or click seats yourself
+5. Continue to payment
+6. Razorpay's real checkout popup opens - use test card
+   **4111 1111 1111 1111**, any future expiry, any CVV, any name
+7. After payment, the booking confirms, food ordering appears, and it
+   shows up grouped in "My Bookings"
+8. Go to "Live chat" - open the SAME movie in a second browser tab
+   with a different name, send a message from one tab, watch it appear
+   instantly in the other - that's the real-time Socket.IO part, not polling
+
+### Concurrency demo (still the most important one)
+Two tabs, same theatre, same movie, same seat count, try to grab the
+SAME seat in both - one succeeds, the other gets rejected. Watch the
+System Activity panel on the booking screen for the live lock/reject messages.
+
+### Deadlock demo
+```
+python deadlock_demo.py
+```
+Reset seats 1 and 2 to 'available' first if they aren't already.
+
+### DBMS objects
+```sql
+SELECT * FROM available_seats_per_show;                      -- view
+SELECT * FROM seat_audit_log ORDER BY changed_at DESC;        -- trigger (book any seat first)
+CALL ConfirmBooking(1, 1, 250.00, @result); SELECT @result;   -- stored procedure
+```
+
+## Clearing demo data between runs
+
+```sql
+USE cinesync;
+DELETE FROM food_orders;
+DELETE FROM payments;
+DELETE FROM bookings;
+DELETE FROM payment_orders;
+DELETE FROM seat_audit_log;
+UPDATE seats SET status='available', held_by=NULL, held_until=NULL;
+ALTER TABLE bookings AUTO_INCREMENT = 1;
+ALTER TABLE payments AUTO_INCREMENT = 1;
+ALTER TABLE payment_orders AUTO_INCREMENT = 1;
+```
+
+## OS and DBMS concepts, where to find them
+
+| Concept | File | Notes |
+|---|---|---|
+| Row-level locking / critical section | `app.py` - `hold_group()` | `SELECT ... FOR UPDATE` on each seat |
+| Deadlock prevention | `app.py` - `hold_group()` | seats always locked in sorted ID order |
+| Deadlock + detection | `deadlock_demo.py` | deliberately skips the sorted-order safeguard to trigger a real deadlock |
+| Semaphore (bounded resource) | `app.py` - `BOOKING_COUNTERS` | max 3 concurrent booking operations |
+| Background thread / scheduling | `scheduler.py` | separate OS thread, polls every 30s |
+| Great-circle distance (location search) | `geo.py` - `haversine_km()` | used by `/api/theatres/nearby`; at scale you would pre-filter with an indexed bounding box or a MySQL spatial index |
+| Transaction (ACID) | `app.py` - `verify_payment()` | all bookings+payments in a group commit or roll back together |
+| View | `schema.sql` | `available_seats_per_show` |
+| Trigger | `schema.sql` | `seat_status_change`, fires on its own |
+| Stored procedure | `schema.sql` | `ConfirmBooking` - not called by the live app, shown separately |
 
 ## Folder structure
 
 ```
 cinesync/
 ├── backend/
-│   ├── app.py          - Flask routes: get seats, hold seat, book seat
-│   ├── scheduler.py     - background job, frees expired seat holds
-│   ├── database.py      - MySQL connection helper
-│   ├── schema.sql        - full DB schema + sample data
+│   ├── app.py                   - Flask + Socket.IO: theatres, group booking, Razorpay, live chat
+│   ├── scheduler.py             - background thread, releases expired holds
+│   ├── activity.py              - shared live activity log
+│   ├── database.py              - MySQL connection helper
+│   ├── payment_config.py        - Razorpay test key placeholders (fill these in)
+│   ├── deadlock_demo.py         - standalone deadlock trigger + detection demo
+│   ├── geo.py                   - haversine distance + server-side seat pricing (pure functions)
+│   ├── seed_shows.py            - creates upcoming shows + seats relative to today (re-runnable)
+│   ├── migrate_to_phase4.py     - upgrades a Phase 3 database to Phase 4
+│   ├── migrate_to_phase3.py     - safely upgrades an existing Phase 2 database
+│   ├── schema.sql               - full schema, fresh install
 │   └── requirements.txt
 └── frontend/
     ├── index.html

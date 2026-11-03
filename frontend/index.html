@@ -2,131 +2,287 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>CineSync</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<script>
+  /* choose the theme before the page paints, so there is no light/dark flash */
+  (function () {
+    var t = null;
+    try { t = localStorage.getItem("cinesync.theme"); } catch (e) {}
+    document.documentElement.setAttribute("data-theme", t === "dark" ? "dark" : "light");
+  })();
+</script>
+<title>CineSync - cinemas near you</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 </head>
 <body>
 
-  <!-- NAVBAR -->
-  <nav class="navbar">
-    <div class="brand">🎬 CineSync</div>
-    <ul class="nav-links">
-      <li class="active" data-nav="movies">Movies</li>
-      <li data-nav="bookings">My Bookings</li>
-      <li data-nav="reviews">Reviews</li>
-    </ul>
+<header class="topbar hidden" id="topbar">
+  <button class="brand" id="brandBtn" aria-label="CineSync home">Cine<span>Sync</span></button>
+
+  <button class="loc-pill" id="locPill" aria-label="Change location">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+    <span id="locPillLabel">Set location</span>
+  </button>
+
+  <nav class="nav" aria-label="Main">
+    <button data-nav="discover" class="active">Cinemas</button>
+    <button data-nav="tickets">My tickets</button>
+    <button data-nav="lab">ACID lab</button>
+    <button data-nav="chat">Live chat <i class="live-dot" id="liveDot" title="Connecting"></i></button>
   </nav>
 
-  <!-- NAME ENTRY -->
-  <div id="nameScreen" class="name-screen">
-    <div class="name-card">
-      <h2>Welcome to CineSync</h2>
-      <p>Enter your name to start booking</p>
-      <input type="text" id="nameInput" placeholder="e.g. Priya Sharma" maxlength="50">
-      <button id="nameSubmit">Continue</button>
-      <p id="nameError" class="error-text"></p>
-    </div>
-  </div>
+  <button class="theme-btn" id="themeBtn" aria-label="Switch theme" title="Switch theme"><svg class="ico-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="ico-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+  <div class="user-chip" id="userChip"></div>
+</header>
 
-  <!-- MOVIE SELECTION -->
-  <div id="moviesScreen" class="page hidden">
-    <h2 class="page-title">Now Showing</h2>
-    <div id="movieGrid" class="movie-grid"></div>
-  </div>
+<button class="theme-btn gate-theme" id="gateTheme" aria-label="Switch theme" title="Switch theme"><svg class="ico-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="ico-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
 
-  <!-- SEAT BOOKING -->
-  <div id="bookingScreen" class="booking-screen hidden">
+<main>
 
-    <header class="movie-banner">
-      <div class="movie-info">
-        <h1 id="bookingMovieTitle"></h1>
-        <p id="bookingMovieMeta"></p>
+  <!-- 1. WHO + WHERE -->
+  <section id="gate" class="screen gate">
+    <div class="gate-copy">
+      <h1>Find a seat near you.</h1>
+      <p class="lede">Tell us where you are and we'll list the cinemas around you, nearest first, with what's playing and how full each show is.</p>
+
+      <div class="field">
+        <label for="nameInput">Your name</label>
+        <input type="text" id="nameInput" placeholder="e.g. Priya Sharma" maxlength="50" autocomplete="name">
       </div>
-      <div class="user-chip">👤 <span id="userNameDisplay"></span></div>
-    </header>
 
-    <div class="screen-indicator">
-      <div class="screen-curve"></div>
-      <span>SCREEN THIS SIDE</span>
+      <div class="field">
+        <label for="locInput">Where are you?</label>
+        <div class="loc-field">
+          <input type="text" id="locInput" placeholder="City, area or pincode" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="locSuggest">
+          <button type="button" class="btn ghost" id="geoBtn">Use my location</button>
+          <ul id="locSuggest" class="suggest hidden" role="listbox"></ul>
+        </div>
+      </div>
+
+      <button class="btn primary big" id="gateGo">Show cinemas near me</button>
+      <p class="form-msg" id="gateMsg" role="alert"></p>
     </div>
 
-    <div id="seatMap" class="seat-map"></div>
+    <div class="gate-visual" aria-hidden="true">
+      <svg viewBox="0 0 400 400" class="gate-radar">
+        <defs>
+          <radialGradient id="sweepGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0" stop-color="#7b5cff" stop-opacity=".0"/>
+            <stop offset="1" stop-color="#ff4f8b" stop-opacity=".55"/>
+          </radialGradient>
+        </defs>
+        <circle cx="200" cy="200" r="60" class="g-ring"/>
+        <circle cx="200" cy="200" r="120" class="g-ring"/>
+        <circle cx="200" cy="200" r="180" class="g-ring"/>
+        <path d="M200 200 L200 20 A180 180 0 0 1 327 73 Z" fill="url(#sweepGlow)" class="g-sweep"/>
+        <circle cx="200" cy="200" r="7" class="g-you"/>
+        <circle cx="262" cy="142" r="6" class="g-pin p1"/>
+        <circle cx="132" cy="255" r="6" class="g-pin p2"/>
+        <circle cx="236" cy="290" r="6" class="g-pin p3"/>
+        <circle cx="150" cy="120" r="6" class="g-pin p4"/>
+      </svg>
+    </div>
+  </section>
+
+  <!-- 2. CINEMAS NEAR YOU -->
+  <section id="discover" class="screen hidden">
+    <div class="page-head">
+      <div>
+        <h1 id="discoverTitle">Cinemas near you</h1>
+        <p class="sub" id="discoverSub"></p>
+      </div>
+      <div class="controls">
+        <div class="seg" id="sortSeg" role="group" aria-label="Sort cinemas">
+          <button data-sort="distance" class="on">Nearest</button>
+          <button data-sort="price">Cheapest</button>
+          <button data-sort="time">Earliest show</button>
+        </div>
+        <label class="radius">
+          <span>Within <b id="radiusVal">25</b> km</span>
+          <input type="range" id="radiusRange" min="2" max="100" step="1" value="25">
+        </label>
+      </div>
+    </div>
+
+    <div class="chips" id="amenityChips" aria-label="Filter by amenity"></div>
+
+    <div class="discover-grid">
+      <div id="cinemaList" class="cinema-list"></div>
+      <aside class="radar-panel">
+        <svg id="radar" viewBox="0 0 400 400" role="img" aria-label="Map of cinemas around you"></svg>
+        <p class="radar-note">Distances are straight-line. Hover a cinema to find it on the radar.</p>
+      </aside>
+    </div>
+  </section>
+
+  <!-- 3. ONE CINEMA: DAYS, MOVIES, SHOWTIMES -->
+  <section id="cinema" class="screen hidden">
+    <button class="back" id="backToDiscover">&larr; All cinemas</button>
+    <header class="cinema-head">
+      <h1 id="cinemaName"></h1>
+      <p class="sub" id="cinemaMeta"></p>
+      <div class="chips static" id="cinemaAmenities"></div>
+    </header>
+    <div class="day-tabs" id="dayTabs" role="tablist"></div>
+    <div id="movieRows" class="movie-rows"></div>
+  </section>
+
+  <!-- 4. SEATS -->
+  <section id="seats" class="screen hidden" style="--hue:330">
+    <div class="seat-head">
+      <button class="back" id="backToCinema">&larr; Showtimes</button>
+      <div class="seat-title">
+        <h1 id="seatMovie"></h1>
+        <p class="sub" id="seatMeta"></p>
+      </div>
+      <div class="seat-controls">
+        <div class="stepper" aria-label="Number of seats">
+          <button id="seatMinus" aria-label="Fewer seats">&minus;</button>
+          <span><b id="seatCount">2</b> seats</span>
+          <button id="seatPlus" aria-label="More seats">+</button>
+        </div>
+        <button class="btn ghost" id="bestSeatsBtn">Pick best seats</button>
+      </div>
+    </div>
+
+    <div class="stage" aria-hidden="true">
+      <div class="beam"></div>
+      <div class="screen-bar"></div>
+      <span>Screen</span>
+    </div>
+
+    <div class="seat-scroll"><div id="seatMap" class="seat-map"></div></div>
 
     <div class="legend">
-      <span><i class="box available"></i> Available</span>
-      <span><i class="box held"></i> Held</span>
-      <span><i class="box booked"></i> Booked</span>
+      <span><i class="sw available"></i>Available</span>
+      <span><i class="sw selected"></i>Your pick</span>
+      <span><i class="sw held"></i>Someone is paying</span>
+      <span><i class="sw booked"></i>Booked</span>
     </div>
 
-    <p id="statusMsg" class="status-msg"></p>
-
-    <!-- live OS/DBMS activity feed -->
-    <div class="activity-panel">
-      <div class="activity-header" id="activityToggle">
-        <span>⚙️ System Activity (live) — shows locking, transactions &amp; scheduler events</span>
-        <span id="activityArrow">▾</span>
-      </div>
+    <details class="activity" id="activity">
+      <summary>Behind the scenes: locks, transactions and the scheduler, live</summary>
       <div id="activityLog" class="activity-log"></div>
+    </details>
+
+    <div class="tray" id="tray">
+      <div class="tray-info">
+        <div class="tray-seats" id="traySeats"></div>
+        <div class="tray-total" id="trayTotal"></div>
+      </div>
+      <button class="btn primary" id="continueBtn" disabled>Pick 2 seats</button>
+    </div>
+  </section>
+
+  <!-- 5. PAY -->
+  <section id="pay" class="screen hidden">
+    <div class="pay-wrap">
+      <div class="pay-summary">
+        <h1>Confirm and pay</h1>
+        <div id="paySummary"></div>
+        <div id="txViewer" class="tx hidden" aria-live="polite"></div>
+      </div>
+      <div class="pay-action">
+        <div class="hold-ring" id="holdRing">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle cx="60" cy="60" r="52" class="ring-bg"/>
+            <circle cx="60" cy="60" r="52" class="ring-fg" id="ringFg"/>
+          </svg>
+          <div><b id="holdTime">5:00</b><span>seats held for you</span></div>
+        </div>
+        <button class="btn primary big" id="payBtn">Pay</button>
+        <button class="btn ghost" id="payCancel">Release seats and go back</button>
+        <p class="hint" id="payHint">No real money moves.</p>
+        <p class="form-msg" id="payMsg" role="alert"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. CONFIRMED -->
+  <section id="done" class="screen hidden">
+    <div class="done-wrap">
+      <h1>You're going.</h1>
+      <div id="ticketMount"></div>
+
+      <details class="under-hood" id="doneTxWrap" open>
+        <summary>What the database did to book this</summary>
+        <div id="doneTx" class="tx"></div>
+      </details>
+
+      <div class="food">
+        <h2>Add snacks to your order</h2>
+        <p class="sub">Optional. We'll have it ready for your show.</p>
+        <div id="foodList" class="food-list"></div>
+        <div class="food-actions">
+          <button class="btn primary" id="addFoodBtn">Add to order</button>
+          <button class="btn ghost" id="finishBtn">Skip, view my tickets</button>
+        </div>
+        <p class="form-msg" id="foodMsg" role="alert"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. ACID LAB -->
+  <section id="lab" class="screen hidden">
+    <div class="page-head">
+      <div>
+        <h1>ACID lab</h1>
+        <p class="sub">Four real MySQL experiments. Run each one with the protection on, then off, and watch what changes.</p>
+      </div>
+    </div>
+    <div class="lab-tabs" id="labTabs" role="tablist"></div>
+    <div class="lab-panel" id="labPanel"></div>
+  </section>
+
+  <!-- 8. MY TICKETS -->
+  <section id="tickets" class="screen hidden">
+    <div class="page-head"><h1>My tickets</h1></div>
+    <div id="ticketList" class="ticket-list"></div>
+  </section>
+
+  <!-- 9. LIVE CHAT -->
+  <section id="chat" class="screen hidden">
+    <div class="page-head">
+      <div>
+        <h1>Live chat</h1>
+        <p class="sub">Pick a movie. Everyone watching the same room sees your message instantly.</p>
+      </div>
+    </div>
+    <div class="movie-pills" id="chatMovies"></div>
+    <div class="chat-box">
+      <div id="chatFeed" class="chat-feed" aria-live="polite"></div>
+      <div class="chat-input">
+        <div class="stars" id="chatStars" role="radiogroup" aria-label="Your rating"></div>
+        <input type="text" id="chatText" placeholder="Say something about the movie..." maxlength="500">
+        <button class="btn primary" id="chatSend">Send</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div class="modal hidden" id="mockModal" role="dialog" aria-modal="true" aria-labelledby="mockTitle">
+  <div class="modal-card">
+    <p class="modal-tag">Demo checkout</p>
+    <h2 id="mockTitle">Pay <span id="mockAmount"></span></h2>
+    <p class="sub">A simulated payment screen. No card is needed and no money moves. Pick what should happen, and watch the database react.</p>
+    <div class="modal-actions">
+      <button class="btn primary big" id="mockPay">Pay successfully</button>
+      <button class="btn ghost" id="mockFail">Decline the card</button>
+      <button class="btn ghost danger" id="mockCrash">Crash the server mid-booking <small>(ACID demo)</small></button>
+      <button class="btn ghost" id="mockCancel">Close without paying</button>
     </div>
   </div>
+</div>
 
-  <!-- PAYMENT -->
-  <div id="paymentScreen" class="center-screen hidden">
-    <div class="card">
-      <h2>Confirm &amp; Pay</h2>
-      <div class="summary-row"><span>Movie</span><span id="payMovieTitle"></span></div>
-      <div class="summary-row"><span>Seat</span><span id="paySeatNo"></span></div>
-      <div class="summary-row"><span>Amount</span><span>₹250.00</span></div>
-      <button id="payNowBtn">Pay Now</button>
-      <button id="payCancelBtn" class="secondary-btn">Cancel</button>
-      <p id="paymentStatus" class="error-text"></p>
-    </div>
-  </div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <!-- RECEIPT + FOOD -->
-  <div id="receiptScreen" class="center-screen hidden">
-    <div class="card">
-      <h2>🎉 Booking Confirmed</h2>
-      <div class="summary-row"><span>Booking ID</span><span id="receiptBookingId"></span></div>
-      <div class="summary-row"><span>Seat</span><span id="receiptSeatNo"></span></div>
-      <div class="summary-row"><span>Amount Paid</span><span>₹250.00</span></div>
-
-      <h3 class="sub-heading">Add Food &amp; Snacks (optional)</h3>
-      <div id="foodList" class="food-list"></div>
-      <button id="addFoodBtn">Add to Order</button>
-      <button id="skipFoodBtn" class="secondary-btn">Skip &amp; Finish</button>
-      <p id="foodStatus" class="error-text"></p>
-    </div>
-  </div>
-
-  <!-- MY BOOKINGS -->
-  <div id="bookingsScreen" class="page hidden">
-    <h2 class="page-title">My Bookings</h2>
-    <div id="bookingsList" class="bookings-list"></div>
-  </div>
-
-  <!-- REVIEWS / LIVE CHAT -->
-  <div id="reviewsScreen" class="page hidden">
-    <h2 class="page-title">Reviews &amp; Live Chat</h2>
-    <select id="reviewMovieSelect" class="movie-select"></select>
-
-    <div id="reviewFeed" class="review-feed"></div>
-
-    <div class="review-input-row">
-      <select id="ratingSelect">
-        <option value="5">★★★★★</option>
-        <option value="4">★★★★☆</option>
-        <option value="3">★★★☆☆</option>
-        <option value="2">★★☆☆☆</option>
-        <option value="1">★☆☆☆☆</option>
-      </select>
-      <input type="text" id="reviewInput" placeholder="Share your thoughts...">
-      <button id="reviewSendBtn">Send</button>
-    </div>
-  </div>
-
-  <script src="script.js"></script>
+<script src="script.js"></script>
 </body>
 </html>

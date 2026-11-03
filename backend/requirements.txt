@@ -1,2 +1,6 @@
 flask==3.0.3
 mysql-connector-python==8.4.0
+flask-cors==6.0.5
+flask-socketio==5.3.6
+python-socketio==5.11.2
+razorpay==1.4.2
