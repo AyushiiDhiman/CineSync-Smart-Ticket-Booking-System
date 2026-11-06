@@ -4,3 +4,4 @@ flask-cors==6.0.5
 flask-socketio==5.3.6
 python-socketio==5.11.2
 razorpay==1.4.2
+gunicorn==22.0.0

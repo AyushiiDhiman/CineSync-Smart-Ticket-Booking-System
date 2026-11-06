@@ -5,7 +5,7 @@
          seats -> pay -> ticket (+ snacks) -> my tickets / live chat
    ========================================================================== */
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = "https://your-service-name.onrender.com";
 const MAX_GROUP_SEATS = 6;
 const RING_LENGTH = 2 * Math.PI * 52;      // matches r=52 on the hold-timer ring
 const LS_NAME = "cinesync.name";
