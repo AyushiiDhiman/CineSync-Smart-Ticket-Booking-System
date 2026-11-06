@@ -87,15 +87,18 @@ def _theatre_row(t):
     }
 
 
-@app.route("/api/theatres", methods=["GET"])
-def get_theatres():
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT id, name, location, city, lat, lng, amenities FROM theatres ORDER BY id")
-    theatres = [_theatre_row(t) for t in cursor.fetchall()]
-    cursor.close()
-    conn.close()
-    return jsonify(theatres)
+@app.route("/api/dbtest")
+def dbtest():
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("SHOW TABLES")
+        tables = [r[0] for r in cur.fetchall()]
+        cur.close()
+        conn.close()
+        return jsonify({"ok": True, "tables": tables})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 @app.route("/api/theatres/nearby", methods=["GET"])
