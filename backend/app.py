@@ -1,5 +1,5 @@
 """
-CineSync backend - Phase 4
+CineSync backend - Phase 3
 
 Covers:
     - LOCATION SEARCH (new in Phase 4): the user types a city/area or
@@ -29,6 +29,7 @@ Run with: python app.py
 
 from flask import Flask, jsonify, request
 from datetime import datetime, timedelta
+import os
 import random
 import threading
 import uuid
@@ -1000,9 +1001,8 @@ def handle_send_message(data):
     }, room=room)
 
 
+start_scheduler()   # runs at import, so it also starts under gunicorn
+
 if __name__ == "__main__":
-    start_scheduler()
-    # allow_unsafe_werkzeug is needed because Flask-SocketIO's dev
-    # server check otherwise refuses to run under Werkzeug's debug
-    # reloader - fine for local development, not for production
-    socketio.run(app, debug=True, port=5000, allow_unsafe_werkzeug=True)
+    port = int(os.environ.get("PORT", 5000))
+    socketio.run(app, host="0.0.0.0", port=port, allow_unsafe_werkzeug=True)
