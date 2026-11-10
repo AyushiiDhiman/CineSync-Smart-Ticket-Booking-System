@@ -32,10 +32,12 @@ def base_price(theatre_id, movie_id):
     return 180 + 20 * ((theatre_id * 3 + movie_id) % 5)   # Rs.180 - Rs.260
 
 
-def seed_upcoming_shows(conn, days=3):
+def seed_upcoming_shows(conn, days=3, theatre_ids=None):
     cur = conn.cursor()
     cur.execute("SELECT id FROM theatres")
     theatres = [r[0] for r in cur.fetchall()]
+    if theatre_ids is not None:
+        theatres = [t for t in theatres if t in set(theatre_ids)]
     cur.execute("SELECT id FROM movies")
     movies = [r[0] for r in cur.fetchall()]
 

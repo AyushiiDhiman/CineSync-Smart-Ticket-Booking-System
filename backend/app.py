@@ -41,6 +41,7 @@ from scheduler import start_scheduler
 from activity import log_event, get_log
 from payment_config import PAYMENT_MODE, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET
 from geo import haversine_km, seat_price, seat_tier
+from osm_cinemas import ensure_cinemas_near
 from acid_lab import (ensure_tables as ensure_lab_tables, run_atomicity, run_consistency,
                       run_isolation, run_durability, check_durability)
 
@@ -126,6 +127,7 @@ def get_nearby_theatres():
     if not (-90 <= lat <= 90 and -180 <= lng <= 180):
         return jsonify({"error": "lat/lng out of range"}), 400
     radius = max(1.0, min(radius, 1000.0))
+    ensure_cinemas_near(lat, lng)
 
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
