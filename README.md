@@ -1,11 +1,11 @@
-# CineSync - Phase 4
+# CineSync - Phase 3
 
 Movie ticket booking system built for our OS + DBMS project. Core idea:
 two people should never be able to book the same seat, a group of seats
 booked together should either ALL succeed or ALL fail, and now - real
 payment, real-time chat, and multiple theatres.
 
-## What's new in Phase 4.1
+## What's new in Phase 3.1
 
 - **Demo payment mode (no Razorpay account or PAN needed).** `PAYMENT_MODE = "mock"`
   in `backend/payment_config.py` (the default). Set it to `"razorpay"` and fill in
@@ -28,7 +28,7 @@ payment, real-time chat, and multiple theatres.
 - **Bright and dark themes.** Bright and colourful by default; the sun/moon
   button switches (and remembers your choice).
 
-## What's new in Phase 4
+## What's new in Phase 3
 
 - **Cinemas near you** - type a city/area/pincode or tap "Use my location".
   `GET /api/theatres/nearby` returns cinemas sorted by real distance
@@ -57,7 +57,7 @@ payment, real-time chat, and multiple theatres.
 > Theatre names/coordinates in the sample data are **demo values** (approximate
 > lat/lng). Replace them with real venues before showing this as real data.
 
-## What was in Phase 3
+## What was in Phase 2
 
 - **3 theatres**, each showing all 5 movies - pick a theatre first, then a movie
 - **Group/family booking** - choose how many seats you need (1-6), then
