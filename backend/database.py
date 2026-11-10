@@ -1,31 +1,16 @@
-"""
-Small helper so we don't repeat the MySQL connection setup everywhere.
-Connection settings come from environment variables (set them on Render).
-Locally, the defaults below are used if the variables are not set.
-"""
-
 import os
 import mysql.connector
 
 DB_CONFIG = {
     "host": os.environ.get("DB_HOST", "localhost"),
-    "port": int(os.environ.get("DB_PORT", 3306)),
+    "port": int(os.environ.get("DB_PORT", "3306")),
     "user": os.environ.get("DB_USER", "root"),
-    "password": os.environ.get("DB_PASSWORD", "your_password_here"),  # local default only
+    "password": os.environ.get("DB_PASSWORD", ""),
     "database": os.environ.get("DB_NAME", "cinesync"),
 }
 
-# Hosted providers (Aiven, TiDB Cloud) usually require SSL.
-# Set DB_SSL=true on Render if your provider needs it.
-if os.environ.get("DB_SSL", "").lower() == "true":
-    DB_CONFIG["ssl_disabled"] = False
-    DB_CONFIG["tls_versions"] = ["TLSv1.2", "TLSv1.3"]
-
 
 def get_connection():
-    # autocommit is off on purpose - we want full control over
-    # when a transaction commits, since that's the whole point
-    # of the booking + payment flow
     conn = mysql.connector.connect(**DB_CONFIG)
     conn.autocommit = False
     return conn
