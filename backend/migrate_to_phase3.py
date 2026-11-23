@@ -1,26 +1,3 @@
-"""
-Run this ONCE if your database already has the Phase 2 setup (single
-theatre, mock payment only) and you don't want to drop everything and
-lose your existing bookings.
-
-Adds: 2 more theatres (INOX, Cinepolis) with a show + 20 seats for
-every existing movie at each, the payment_orders table, two new
-columns (bookings.group_order_id, payments.razorpay_payment_id), and
-the view/trigger/stored procedure if they aren't already there.
-
-Everything here checks first, so it's safe to run more than once by
-accident - it just skips whatever already exists.
-
-Bonus: doing this through Python instead of the mysql command line
-means we don't need the DELIMITER // trick at all for the trigger and
-procedure - mysql-connector sends the whole CREATE TRIGGER / CREATE
-PROCEDURE block as one statement regardless of the semicolons inside
-it, so none of the "ERROR 1046 no database selected" / DELIMITER
-confusion that happens in the CLI comes up here.
-
-Run with: python migrate_to_phase3.py
-"""
-
 from database import get_connection
 
 NEW_THEATRES = [
