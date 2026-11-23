@@ -11,12 +11,12 @@ OVERPASS_URLS = [
     "https://overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
 ]
-FETCH_RADIUS_KM = 25      # how far around the searched point we ask OSM
-MIN_LOCAL_THEATRES = 3    # fewer than this nearby -> ask OSM
-MAX_NEW_PER_FETCH = 15    # keeps each request (and the seeding) small
+FETCH_RADIUS_KM = 25      
+MIN_LOCAL_THEATRES = 3   
+MAX_NEW_PER_FETCH = 15   
 CACHE_SECONDS = 24 * 3600
 
-_asked = {}               # (lat cell, lng cell) -> time we last asked OSM
+_asked = {}               
 _column_ok = False
 
 
