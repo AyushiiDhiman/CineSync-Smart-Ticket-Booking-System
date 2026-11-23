@@ -1,14 +1,3 @@
-"""
-Upgrades an existing Phase 3 database to Phase 4 WITHOUT losing bookings.
-
-Adds: theatres.city/lat/lng/amenities, movies.genre/language, shows.price,
-the extra demo theatres, and fresh upcoming shows + seats.
-
-Safe to run more than once - every step checks before it changes anything.
-
-    python migrate_to_phase4.py
-"""
-
 from database import get_connection
 from seed_shows import seed_upcoming_shows
 
