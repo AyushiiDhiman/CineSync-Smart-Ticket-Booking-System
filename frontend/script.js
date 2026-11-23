@@ -1,9 +1,3 @@
-/* ==========================================================================
-   CineSync - Phase 4 frontend (plain JS, no build step)
-
-   Flow: gate (name + location) -> cinemas near you -> showtimes ->
-         seats -> pay -> ticket (+ snacks) -> my tickets / live chat
-   ========================================================================== */
 
 const API_BASE = "https://cinesync-smart-ticket-booking-system-4.onrender.com";
 const MAX_GROUP_SEATS = 6;
