@@ -1,13 +1,3 @@
-"""
-Pulls REAL cinema locations from OpenStreetMap (Overpass API) for any place
-in India, saves them in the `theatres` table, and creates demo shows + seats
-for the new ones so they can be booked in this project.
-
-What is real: cinema names and coordinates (OpenStreetMap contributors).
-What is NOT real: showtimes, prices and seats - those are generated demo data.
-OSM coverage of Indian cinemas is incomplete, so some towns will return few
-or no results.
-"""
 import json
 import time
 import urllib.parse
