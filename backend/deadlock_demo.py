@@ -1,20 +1,3 @@
-"""
-deadlock_demo.py
-
-Standalone script for the viva/demo - NOT part of the main app.
-Creates a real deadlock on purpose and shows MySQL's InnoDB engine
-detecting and breaking it automatically.
-
-Setup:
-    Txn A locks seat 1, then tries to lock seat 2
-    Txn B locks seat 2, then tries to lock seat 1
-    -> circular wait -> InnoDB detects it and kills one transaction
-
-Run with: python deadlock_demo.py
-(reset seat 1 and seat 2 to 'available' in the DB before running,
-otherwise the FOR UPDATE locks below won't behave the same way)
-"""
-
 import threading
 import time
 
