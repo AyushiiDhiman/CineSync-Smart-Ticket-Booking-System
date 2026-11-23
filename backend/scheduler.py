@@ -1,19 +1,3 @@
-"""
-Background job that keeps checking for seats people grabbed (alone
-or as part of a group/family booking) but never actually paid for,
-and frees them back up.
-
-This is the OS part of the project worth explaining clearly in the
-viva: this function runs on its own OS thread (via Python's
-`threading` module), completely separate from the thread(s) handling
-Flask/SocketIO requests. Same idea as how an OS runs a background
-daemon/service alongside foreground processes without blocking them.
-
-It's a simple polling-interval scheduler (checks every 30 seconds),
-not a priority-based algorithm like Round Robin or SJF - worth being
-upfront about that if asked.
-"""
-
 import threading
 import time
 from datetime import datetime
