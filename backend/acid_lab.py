@@ -1,21 +1,3 @@
-"""
-ACID Lab - four small, REAL MySQL experiments, one per letter of ACID.
-
-Each demo runs actual transactions on small dedicated tables (lab_*), so it
-never touches your real bookings. Each returns a step-by-step "trace" (what
-ran, in what order, at what time) that the frontend draws as a timeline.
-
-Every demo can be run WITH the protection and WITHOUT it, so the difference
-is something you can see rather than something you have to take on trust:
-
-    Atomicity    transaction + ROLLBACK        vs  autocommit (no transaction)
-    Consistency  UNIQUE / CHECK rules          (the database refuses bad data)
-    Isolation    SELECT ... FOR UPDATE         vs  plain SELECT (no lock)
-    Durability   COMMIT, read back by a NEW connection, check the log setting
-
-The lab tables are created automatically the first time any demo runs.
-"""
-
 import threading
 import time
 from datetime import datetime
@@ -149,10 +131,6 @@ def _invariants():
         conn.close()
 
 
-# ----------------------------------------------------------------------
-# A - Atomicity
-# ----------------------------------------------------------------------
-
 def run_atomicity(safe=True):
     """Priya books 3 seats; the server 'crashes' after the 2nd."""
     with _LAB_LOCK:
@@ -203,9 +181,6 @@ def run_atomicity(safe=True):
         return {"steps": tr.result(), "state": state, "verdict": verdict}
 
 
-# ----------------------------------------------------------------------
-# C - Consistency
-# ----------------------------------------------------------------------
 
 def run_consistency(scenario="double_booking"):
     """The database refuses changes that would break its own rules."""
@@ -288,9 +263,6 @@ def run_consistency(scenario="double_booking"):
         return {"steps": tr.result(), "state": state, "rules": rules, "verdict": verdict}
 
 
-# ----------------------------------------------------------------------
-# I - Isolation
-# ----------------------------------------------------------------------
 
 def _safe_worker(tr, name, start_delay, hold_secs, results):
     """Reads the seat WITH a row lock (SELECT ... FOR UPDATE), then books it."""
@@ -414,9 +386,6 @@ def run_isolation(safe=True):
                 "verdict": verdict}
 
 
-# ----------------------------------------------------------------------
-# D - Durability
-# ----------------------------------------------------------------------
 
 _FLUSH_MEANING = {
     "1": "the log is flushed to disk at every COMMIT. A committed row survives a MySQL crash or a power cut (the safe default).",
