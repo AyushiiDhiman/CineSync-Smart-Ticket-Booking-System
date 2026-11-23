@@ -1,6 +1,3 @@
--- CineSync database schema (Phase 4 - full version)
--- Fresh install:  mysql -u root -p < schema.sql   then   python seed_shows.py
-
 CREATE DATABASE IF NOT EXISTS cinesync;
 USE cinesync;
 
@@ -11,8 +8,7 @@ CREATE TABLE users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Phase 4: lat/lng + city make "cinemas near me" possible. amenities is a
--- comma-separated list (simple on purpose - one small table fewer to explain).
+
 CREATE TABLE theatres (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
@@ -55,10 +51,7 @@ CREATE TABLE seats (
     FOREIGN KEY (held_by) REFERENCES users(id)
 );
 
--- tracks a Razorpay order from the moment we create it until payment
--- is verified. seat_ids is a simple comma-separated list (e.g. "12,13,14")
--- rather than a separate join table - a deliberate simplification since
--- an order always maps to one specific set of seats for one booking attempt
+
 CREATE TABLE payment_orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
     razorpay_order_id VARCHAR(100) NOT NULL UNIQUE,
@@ -70,9 +63,6 @@ CREATE TABLE payment_orders (
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
--- group_order_id links multiple seat bookings together when a family/
--- group books more than one seat in the same transaction - lets "My
--- Bookings" show them as one group instead of N separate entries
 CREATE TABLE bookings (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -85,9 +75,7 @@ CREATE TABLE bookings (
     FOREIGN KEY (group_order_id) REFERENCES payment_orders(id)
 );
 
--- razorpay_payment_id stores the actual gateway payment reference once
--- real Razorpay payments are wired in (Phase 3) - NULL for older mock
--- payments from Phase 2
+
 CREATE TABLE payments (
     id INT AUTO_INCREMENT PRIMARY KEY,
     booking_id INT NOT NULL,
@@ -134,12 +122,7 @@ CREATE TABLE seat_audit_log (
 );
 
 
--- ====================================================================
--- sample data. NOTE: theatre names/coordinates below are DEMO data
--- (approximate lat/lng) - replace with real venues for a real launch.
--- Shows and seats are NOT inserted here any more: run seed_shows.py so
--- show dates are always relative to today.
--- ====================================================================
+
 
 INSERT INTO theatres (name, location, city, lat, lng, amenities) VALUES
 ('PVR Cinemas',        'City Mall, Rajpur Road',  'Dehradun',  30.335800, 78.052900, 'Dolby Atmos,Recliners,Food Court,Parking'),
@@ -171,11 +154,6 @@ INSERT INTO food_items (name, price) VALUES
 ('Combo: Popcorn + Coke', 280.00);
 
 
--- ====================================================================
--- DBMS objects: view, trigger, stored procedure - not all used by
--- app.py directly (noted below), but here so the project covers the
--- classic DBMS objects and not just plain queries from the python side
--- ====================================================================
 
 CREATE OR REPLACE VIEW available_seats_per_show AS
 SELECT
