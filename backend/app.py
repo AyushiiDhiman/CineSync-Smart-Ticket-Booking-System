@@ -1,32 +1,3 @@
-"""
-CineSync backend - Phase 3
-
-Covers:
-    - LOCATION SEARCH (new in Phase 4): the user types a city/area or
-      shares browser location; /api/theatres/nearby returns cinemas
-      sorted by real distance (haversine formula in geo.py)
-    - server-side seat pricing by row tier (never trust the browser)
-    - multiple theatres, each showing all 5 movies
-    - group/family booking - pick a seat count, lock that many seats
-      together as one atomic operation (locked in sorted ID order on
-      purpose, to avoid the exact kind of deadlock deadlock_demo.py
-      demonstrates elsewhere)
-    - REAL Razorpay payment in test mode (not mocked anymore) - an
-      order is created server-side, the user pays through Razorpay's
-      actual checkout popup, and we verify the payment signature
-      before confirming the booking
-    - a background scheduler (scheduler.py) that frees up seats
-      nobody paid for in time
-    - food ordering after a booking is confirmed
-    - TRUE live chat per movie using Socket.IO (not polling anymore) -
-      messages push to everyone in the room instantly and are also
-      saved to the reviews table
-    - an activity log feed so the locking/transaction/scheduler
-      events are visible in the UI, not just the terminal
-
-Run with: python app.py
-"""
-
 from flask import Flask, jsonify, request
 from datetime import datetime, timedelta
 import os
@@ -62,19 +33,7 @@ else:
 
 HOLD_DURATION_MINUTES = 5
 
-# OS concept: bounded resource allocation using a counting semaphore.
-# Think of this like a cinema only having 3 "booking counters" open -
-# even with a lot of groups trying to book at once, only 3 booking
-# operations are actually being processed at a time, the rest wait.
-# Separate from the row locking below - that stops two people
-# grabbing the SAME seat, this limits how many booking operations
-# run concurrently overall.
 BOOKING_COUNTERS = threading.Semaphore(3)
-
-
-# ------------------------------------------------------------------
-# Theatres / movies / shows / seats
-# ------------------------------------------------------------------
 
 def _theatre_row(t):
     """Normalise a theatres row for JSON (Decimal -> float, amenities -> list)."""
@@ -105,18 +64,7 @@ def dbtest():
 
 @app.route("/api/theatres/nearby", methods=["GET"])
 def get_nearby_theatres():
-    """
-    Cinemas within radius_km of (lat, lng), nearest first.
 
-    Distance is computed in Python with the haversine formula. With a
-    handful of theatres that is fine; with thousands you would filter
-    in SQL first (bounding box on an indexed lat/lng, or a MySQL
-    spatial index) and only then compute exact distances.
-
-    'nearest' is always the closest cinema overall, so the UI can say
-    "nothing within 5 km - the closest is X, 42 km away" instead of
-    just showing an empty page.
-    """
     try:
         lat = float(request.args["lat"])
         lng = float(request.args["lng"])
@@ -165,12 +113,7 @@ def get_nearby_theatres():
 
 @app.route("/api/locations/search", methods=["GET"])
 def search_locations():
-    """
-    Autocomplete for the location box. Matches what we actually have
-    cinemas in (cities, localities, theatre names) - so every suggestion
-    is guaranteed to lead to results. Anything else (a pincode, a
-    landmark) is handled by the frontend's map-search fallback.
-    """
+  
     q = (request.args.get("q") or "").strip().lower()
     if len(q) < 2:
         return jsonify([])
@@ -271,10 +214,6 @@ def get_seats(show_id):
     return jsonify(seats)
 
 
-# ------------------------------------------------------------------
-# Users
-# ------------------------------------------------------------------
-
 @app.route("/api/users/lookup", methods=["POST"])
 def lookup_or_create_user():
     data = request.get_json()
@@ -308,25 +247,9 @@ def lookup_or_create_user():
         conn.close()
 
 
-# ------------------------------------------------------------------
-# Group seat holding (family/group booking - pick N seats together)
-# ------------------------------------------------------------------
-
 @app.route("/api/shows/<int:show_id>/hold-group", methods=["POST"])
 def hold_group(show_id):
-    """
-    Locks a WHOLE group of seats together - all or nothing. If even
-    one seat in the group is unavailable, the entire hold is rolled
-    back and nobody gets a partial booking.
 
-    Deadlock-prevention trick: we always lock seats in ascending ID
-    order, regardless of the order the user clicked them in. If two
-    groups both want seats [5, 9] and [9, 5], locking by sorted ID
-    means both requests try to lock 5 before 9, so one just waits for
-    the other instead of the two deadlocking each other - the same
-    general idea deadlock_demo.py shows what happens WITHOUT this
-    precaution.
-    """
     data = request.get_json()
     user_id = data.get("user_id")
     seat_ids = sorted(data.get("seat_ids", []))  # <-- the deadlock-avoidance bit
@@ -385,13 +308,7 @@ def hold_group(show_id):
 
 @app.route("/api/holds/release", methods=["POST"])
 def release_holds():
-    """
-    Lets a user give their held seats back immediately (they pressed
-    Back / Cancel / the hold timer ran out) instead of making everyone
-    else wait for the scheduler's 30-second sweep. The WHERE clause makes
-    sure you can only ever release seats YOU are holding.
-    """
-    data = request.get_json()
+ = request.get_json()
     user_id = data.get("user_id")
     seat_ids = data.get("seat_ids", [])
     if not seat_ids:
@@ -419,18 +336,9 @@ def release_holds():
         conn.close()
 
 
-# ------------------------------------------------------------------
-# Real Razorpay payment (test mode)
-# ------------------------------------------------------------------
-
 @app.route("/api/payment/create-order", methods=["POST"])
 def create_payment_order():
-    """
-    Creates a real Razorpay order (test mode). The frontend then opens
-    Razorpay's actual checkout popup using the order_id this returns.
-    No money moves in test mode, but this is the real Razorpay API,
-    not a fake.
-    """
+
     data = request.get_json()
     user_id = data.get("user_id")
     seat_ids = data.get("seat_ids", [])
@@ -543,20 +451,7 @@ def _snapshot(order_ref):
 
 
 def _confirm_booking(order_ref, payment_id, crash=False):
-    """
-    THE transaction of the whole project (ACID lives here).
 
-    Everything between BEGIN and COMMIT is one unit:
-      - lock the order row, then every seat row (sorted ID order)
-      - for each seat: INSERT booking, INSERT payment, UPDATE seat -> 'booked'
-      - mark the order paid
-    COMMIT only happens at the very end. Any problem on the way (seat taken,
-    exception, simulated crash) -> ROLLBACK and the database is exactly as it
-    was before BEGIN.
-
-    Returns (http_status, payload). payload["trace"] is a step-by-step
-    record of what ran, which the frontend draws as a timeline.
-    """
     trace = []
 
     def step(kind, text):
@@ -754,9 +649,6 @@ def _decline_mock_payment(order_ref):
     return jsonify(payload), 402
 
 
-# ------------------------------------------------------------------
-# Food ordering
-# ------------------------------------------------------------------
 
 @app.route("/api/food-items", methods=["GET"])
 def get_food_items():
@@ -804,11 +696,6 @@ def add_food_order(booking_id):
         cursor.close()
         conn.close()
 
-
-# ------------------------------------------------------------------
-# Booking history (grouped by family/group booking)
-# ------------------------------------------------------------------
-
 @app.route("/api/users/<int:user_id>/bookings", methods=["GET"])
 def get_user_bookings(user_id):
     conn = get_connection()
@@ -849,11 +736,6 @@ def get_user_bookings(user_id):
     conn.close()
     return jsonify(bookings)
 
-
-# ------------------------------------------------------------------
-# ACID lab - live demos of Atomicity, Consistency, Isolation, Durability
-# (acid_lab.py runs real MySQL transactions on small lab_* tables)
-# ------------------------------------------------------------------
 
 def _run_lab(fn, *args):
     try:
@@ -896,19 +778,10 @@ def acid_durability_check():
     return _run_lab(check_durability)
 
 
-# ------------------------------------------------------------------
-# Activity log (OS/DBMS events, visible in the UI)
-# ------------------------------------------------------------------
-
 @app.route("/api/activity-log", methods=["GET"])
 def activity_log():
     return jsonify(get_log())
 
-
-# ------------------------------------------------------------------
-# Reviews - history endpoint (live new messages come through Socket.IO
-# further down, this is just for loading past messages on page load)
-# ------------------------------------------------------------------
 
 @app.route("/api/movies", methods=["GET"])
 def get_movies():
@@ -944,10 +817,6 @@ def get_reviews(movie_id):
     return jsonify(reviews)
 
 
-# ------------------------------------------------------------------
-# Socket.IO events - TRUE live chat, not polling
-# ------------------------------------------------------------------
-
 @socketio.on("join_movie")
 def handle_join_movie(data):
     """Each movie gets its own 'room' so chat doesn't leak across movies."""
@@ -963,12 +832,7 @@ def handle_leave_movie(data):
 
 @socketio.on("send_message")
 def handle_send_message(data):
-    """
-    Saves the message to the reviews table (so it persists and shows
-    up for people who join later) AND immediately pushes it to
-    everyone currently in the room - that's the actual "live" part,
-    no polling involved.
-    """
+
     comment = str(data.get("comment", "")).strip()[:500]
     try:
         rating = max(1, min(5, int(data.get("rating", 5))))
