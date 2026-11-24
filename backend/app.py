@@ -308,7 +308,7 @@ def hold_group(show_id):
 
 @app.route("/api/holds/release", methods=["POST"])
 def release_holds():
- = request.get_json()
+ data = request.get_json()
     user_id = data.get("user_id")
     seat_ids = data.get("seat_ids", [])
     if not seat_ids:
