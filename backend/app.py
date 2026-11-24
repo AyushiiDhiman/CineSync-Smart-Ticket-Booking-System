@@ -20,10 +20,7 @@ app = Flask(__name__)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
-# PAYMENT_MODE = "mock"     -> demo checkout, no Razorpay account needed
-# PAYMENT_MODE = "razorpay" -> real Razorpay (test keys) with signature verification
-# razorpay is only imported in that mode, so mock mode runs even if the
-# razorpay package isn't installed or is broken on your Python version.
+
 if PAYMENT_MODE == "razorpay":
     import razorpay
     razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
@@ -113,7 +110,7 @@ def get_nearby_theatres():
 
 @app.route("/api/locations/search", methods=["GET"])
 def search_locations():
-  
+
     q = (request.args.get("q") or "").strip().lower()
     if len(q) < 2:
         return jsonify([])
@@ -308,7 +305,7 @@ def hold_group(show_id):
 
 @app.route("/api/holds/release", methods=["POST"])
 def release_holds():
- data = request.get_json()
+    data = request.get_json()
     user_id = data.get("user_id")
     seat_ids = data.get("seat_ids", [])
     if not seat_ids:
